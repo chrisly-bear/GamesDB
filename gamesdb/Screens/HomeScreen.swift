@@ -83,9 +83,13 @@ class HomeScreen: UIViewController {
     private func addImagesToContentView(images: [UIImage], toView contentView: UIView) {
         let marginBetweenGames = CGFloat(12.0)
         var previousImageView: UIImageView? = nil
+        var gameId = 0 // TODO: use an actual game id, e.g. IGDB id or url
         for image in images {
             let currentImageView = UIImageView(image: image)
             contentView.addSubview(currentImageView)
+            let tapRecognizer = ImageTapGestureRecognizer(target: self, action: #selector(tappedImage), gameId: "\(gameId)")
+            currentImageView.addGestureRecognizer(tapRecognizer)
+            currentImageView.isUserInteractionEnabled = true
             currentImageView.translatesAutoresizingMaskIntoConstraints = false
             currentImageView.contentMode = .scaleAspectFit
             currentImageView.heightAnchor.constraint(equalTo: contentView.heightAnchor).isActive = true
@@ -99,19 +103,28 @@ class HomeScreen: UIViewController {
             // resize imageview to remove empty space
             currentImageView.widthAnchor.constraint(equalTo: currentImageView.heightAnchor, multiplier: currentImageView.image!.size.width / currentImageView.image!.size.height).isActive = true
             previousImageView = currentImageView
+            gameId += 1
         }
         // last image, constrain to content view's trailing anchor
         previousImageView!.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor, constant: -8.0).isActive = true
     }
 
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
+    @objc private func tappedImage(_ gestureRecognizer: ImageTapGestureRecognizer) {
+        let gameId = gestureRecognizer.gameId
+        print("Tapped image \(gameId)")
+        self.present(DetailScreen(gameId: gameId), animated: true) {
+            print("DetailScreen for game \(gameId) was closed")
+        }
     }
-    */
+    
+    /// Custom UITapGestureRecognizer with additional parameters for passing information to the receiver.
+    class ImageTapGestureRecognizer: UITapGestureRecognizer {
+        let gameId: String
+        
+        init(target: Any?, action: Selector?, gameId: String) {
+            self.gameId = gameId
+            super.init(target: target, action: action)
+        }
+    }
 
 }
