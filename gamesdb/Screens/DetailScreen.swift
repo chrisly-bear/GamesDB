@@ -9,10 +9,10 @@ import UIKit
 
 class DetailScreen: UIViewController {
     
-    let gameId: String
+    let game: Game
     
-    init(gameId: String) {
-        self.gameId = gameId
+    init(game: Game) {
+        self.game = game
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -28,7 +28,7 @@ class DetailScreen: UIViewController {
         let label = UILabel()
         view.addSubview(label)
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "Game Details (game ID: \(gameId))"
+        label.text = game.title
         
         // constraints
         label.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor).isActive = true

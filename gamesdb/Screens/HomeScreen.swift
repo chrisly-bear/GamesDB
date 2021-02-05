@@ -9,7 +9,23 @@ import UIKit
 
 class HomeScreen: UIViewController {
     
+    let gamesProvider = IGDBProvider()
     var contentView: UIView!
+    var popularGames: [Game] = {
+        var array = [Game]()
+        for i in 0...Game.GAMES_COUNT-1 { array.append(Game.placeholder()) }
+        return array
+    }()
+    var justReleasedGames: [Game] = {
+        var array = [Game]()
+        for i in 0...Game.GAMES_COUNT-1 { array.append(Game.placeholder()) }
+        return array
+    }()
+    var comingSoonGames: [Game] = {
+        var array = [Game]()
+        for i in 0...Game.GAMES_COUNT-1 { array.append(Game.placeholder()) }
+        return array
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,19 +50,22 @@ class HomeScreen: UIViewController {
         
         let marginBetweenSections = CGFloat(28.0)
         
-        let popularImages = [#imageLiteral(resourceName: "tombraider"), #imageLiteral(resourceName: "nfs"), #imageLiteral(resourceName: "maxpayne"), #imageLiteral(resourceName: "splintercell")]
-        var bottomAnchor = createSection(title: "Popular", images: popularImages, topAnchor: contentView.layoutMarginsGuide.topAnchor, topMargin: 0.0)
-        
-        let justReleasedImages = [#imageLiteral(resourceName: "cyberpunk"), #imageLiteral(resourceName: "amnesia"), #imageLiteral(resourceName: "gta"), #imageLiteral(resourceName: "cod")]
-        bottomAnchor = createSection(title: "Just Released", images: justReleasedImages, topAnchor: bottomAnchor, topMargin: marginBetweenSections)
-        
-        let comingSoonImages = [#imageLiteral(resourceName: "splintercell"), #imageLiteral(resourceName: "hitman"), #imageLiteral(resourceName: "tombraider"), #imageLiteral(resourceName: "cod")]
-        bottomAnchor = createSection(title: "Coming Soon", images: comingSoonImages, topAnchor: bottomAnchor, topMargin: marginBetweenSections)
-        
+        var bottomAnchor = createSection(title: "Popular", games: popularGames, topAnchor: contentView.layoutMarginsGuide.topAnchor, topMargin: 0.0)
+        bottomAnchor = createSection(title: "Just Released", games: justReleasedGames, topAnchor: bottomAnchor, topMargin: marginBetweenSections)
+        bottomAnchor = createSection(title: "Coming Soon", games: comingSoonGames, topAnchor: bottomAnchor, topMargin: marginBetweenSections)
         bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor, constant: -marginBetweenSections).isActive = true
+        
+        // fetch games from API
+        gamesProvider.fetchJustReleasedGames { (_ games: [Game]) in
+            for i in 0...games.count-1 {
+                DispatchQueue.main.async {
+                    self.justReleasedGames[i].update(new: games[i])
+                }
+            }
+        }
     }
     
-    private func createSection(title: String, images: [UIImage], topAnchor: NSLayoutYAxisAnchor, topMargin: CGFloat) -> NSLayoutYAxisAnchor {
+    private func createSection(title: String, games: [Game], topAnchor: NSLayoutYAxisAnchor, topMargin: CGFloat) -> NSLayoutYAxisAnchor {
         // title label
         let label = UILabel()
         contentView.addSubview(label)
@@ -70,24 +89,24 @@ class HomeScreen: UIViewController {
         let contentView = UIView()
         scrollView.addSubview(contentView)
         contentView.translatesAutoresizingMaskIntoConstraints = false
-        addImagesToContentView(images: images, toView: contentView)
         contentView.topAnchor.constraint(equalTo: scrollView.topAnchor).isActive = true
         contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor).isActive = true
         contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor).isActive = true
         contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor).isActive = true
         contentView.heightAnchor.constraint(equalTo: scrollView.heightAnchor).isActive = true
+        addGamesToContentView(games: games, toView: contentView)
         
         return scrollView.bottomAnchor
     }
     
-    private func addImagesToContentView(images: [UIImage], toView contentView: UIView) {
+    private func addGamesToContentView(games: [Game], toView contentView: UIView) {
         let marginBetweenGames = CGFloat(12.0)
         var previousImageView: UIImageView? = nil
-        var gameId = 0 // TODO: use an actual game id, e.g. IGDB id or url
-        for image in images {
-            let currentImageView = UIImageView(image: image)
+        for game in games {
+            let currentImageView = UIImageView(image: game.coverImage)
+            game.attachedImageView = currentImageView
             contentView.addSubview(currentImageView)
-            let tapRecognizer = ImageTapGestureRecognizer(target: self, action: #selector(tappedImage), gameId: "\(gameId)")
+            let tapRecognizer = ImageTapGestureRecognizer(target: self, action: #selector(tappedImage), game: game)
             currentImageView.addGestureRecognizer(tapRecognizer)
             currentImageView.isUserInteractionEnabled = true
             currentImageView.translatesAutoresizingMaskIntoConstraints = false
@@ -103,26 +122,24 @@ class HomeScreen: UIViewController {
             // resize imageview to remove empty space
             currentImageView.widthAnchor.constraint(equalTo: currentImageView.heightAnchor, multiplier: currentImageView.image!.size.width / currentImageView.image!.size.height).isActive = true
             previousImageView = currentImageView
-            gameId += 1
         }
         // last image, constrain to content view's trailing anchor
         previousImageView!.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor, constant: -8.0).isActive = true
     }
 
     @objc private func tappedImage(_ gestureRecognizer: ImageTapGestureRecognizer) {
-        let gameId = gestureRecognizer.gameId
-        print("Tapped image \(gameId)")
-        self.present(DetailScreen(gameId: gameId), animated: true) {
-            print("DetailScreen for game \(gameId) was closed")
+        let game = gestureRecognizer.game
+        self.present(DetailScreen(game: game), animated: true) {
+            print("DetailScreen for game \"\(game.title)\" was opened")
         }
     }
     
     /// Custom UITapGestureRecognizer with additional parameters for passing information to the receiver.
     class ImageTapGestureRecognizer: UITapGestureRecognizer {
-        let gameId: String
+        let game: Game
         
-        init(target: Any?, action: Selector?, gameId: String) {
-            self.gameId = gameId
+        init(target: Any?, action: Selector?, game: Game) {
+            self.game = game
             super.init(target: target, action: action)
         }
     }
